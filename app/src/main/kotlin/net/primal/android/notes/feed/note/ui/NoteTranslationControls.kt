@@ -63,7 +63,7 @@ private fun NoteTranslationControlsContent(
 ) {
     val scope = rememberCoroutineScope()
     var uiState by remember(noteId, sourceText, settings) {
-        mutableStateOf<NoteTranslationUiState>(NoteTranslationUiState.Hidden)
+        mutableStateOf<NoteTranslationUiState>(NoteTranslationUiState.Idle)
     }
 
     LaunchedEffect(noteId, sourceText) {
