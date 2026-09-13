@@ -102,7 +102,7 @@ class NoteTranslationConfigTest {
     }
 
     @Test
-    fun `missing fallback url on prefer-on-device does not invent libretranslate.com`() {
+    fun `missing fallback url on prefer-on-device does not invent a public host`() {
         NoteTranslationConfig.resolveNetworkRoute(NoteTranslationSettings()).shouldBeNull()
     }
 

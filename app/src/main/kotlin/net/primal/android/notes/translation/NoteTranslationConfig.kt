@@ -43,6 +43,7 @@ object NoteTranslationConfig {
         }
     }
 
+    @Suppress("ReturnCount")
     fun resolveNetworkRoute(settings: NoteTranslationSettings): NetworkTranslationRoute? {
         val apiKey = settings.apiKey.trim().ifBlank { null }
         return when (settings.provider) {
@@ -71,6 +72,7 @@ object NoteTranslationConfig {
      * Fail-closed: empty or invalid input never falls back to a public default host.
      * Accepts a base URL or a full `/translate` path.
      */
+    @Suppress("ReturnCount")
     fun normalizeLibreTranslateBaseUrl(raw: String): String? {
         val cleaned = raw.trim().trimEnd('/')
         if (cleaned.isEmpty()) return null

@@ -27,6 +27,7 @@ import net.primal.android.settings.content.ContentDisplaySettingsContract.UiEven
 import net.primal.android.theme.AppTheme
 import net.primal.android.user.domain.ContentDisplaySettings
 
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ContentDisplaySettingsScreen(

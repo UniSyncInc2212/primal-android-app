@@ -15,6 +15,7 @@ class NoteTranslationEngine(
     private val dispatcherProvider: DispatcherProvider,
     private val cache: NoteTranslationCache = NoteTranslationCache(),
 ) {
+    @Suppress("ReturnCount")
     suspend fun translate(
         text: String,
         settings: NoteTranslationSettings,
@@ -49,6 +50,7 @@ class NoteTranslationEngine(
         return outcome
     }
 
+    @Suppress("ReturnCount")
     private suspend fun translatePreferOnDevice(
         original: String,
         protected: ProtectedNoteText,

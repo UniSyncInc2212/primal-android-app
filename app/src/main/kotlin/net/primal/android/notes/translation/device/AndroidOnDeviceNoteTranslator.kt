@@ -1,15 +1,17 @@
 package net.primal.android.notes.translation.device
 
 import android.content.Context
+import android.icu.util.ULocale
 import android.os.Build
+import android.os.CancellationSignal
 import android.view.translation.TranslationContext
 import android.view.translation.TranslationManager
 import android.view.translation.TranslationRequest
 import android.view.translation.TranslationRequestValue
+import android.view.translation.TranslationResponse
 import android.view.translation.TranslationSpec
 import android.view.translation.Translator
 import androidx.annotation.RequiresApi
-import java.util.Locale
 import java.util.concurrent.Executors
 import java.util.function.Consumer
 import kotlin.coroutines.resume
@@ -27,11 +29,12 @@ class AndroidOnDeviceNoteTranslator(
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
+    @Suppress("ReturnCount")
     private suspend fun translateOnDevice(text: String, targetLanguage: String): String? {
         val manager = context.getSystemService(TranslationManager::class.java) ?: return null
         val translationContext = TranslationContext.Builder(
-            TranslationSpec(TranslationSpec.DATA_FORMAT_TEXT, Locale.forLanguageTag("und")),
-            TranslationSpec(TranslationSpec.DATA_FORMAT_TEXT, Locale.forLanguageTag(targetLanguage)),
+            TranslationSpec(ULocale.forLanguageTag("und"), TranslationSpec.DATA_FORMAT_TEXT),
+            TranslationSpec(ULocale.forLanguageTag(targetLanguage), TranslationSpec.DATA_FORMAT_TEXT),
         ).build()
 
         val executor = Executors.newSingleThreadExecutor()
@@ -50,9 +53,12 @@ class AndroidOnDeviceNoteTranslator(
             val request = TranslationRequest.Builder()
                 .setTranslationRequestValues(mutableListOf(TranslationRequestValue.forText(text)))
                 .build()
-            val response = suspendCancellableCoroutine { continuation ->
+            val cancellation = CancellationSignal()
+            val response = suspendCancellableCoroutine<TranslationResponse> { continuation ->
+                continuation.invokeOnCancellation { cancellation.cancel() }
                 translator.translate(
                     request,
+                    cancellation,
                     executor,
                     Consumer { value ->
                         if (continuation.isActive) {
@@ -60,6 +66,9 @@ class AndroidOnDeviceNoteTranslator(
                         }
                     },
                 )
+            }
+            if (response.translationStatus != TranslationResponse.TRANSLATION_STATUS_SUCCESS) {
+                return null
             }
             val values = response.translationResponseValues
             if (values.size() == 0) {

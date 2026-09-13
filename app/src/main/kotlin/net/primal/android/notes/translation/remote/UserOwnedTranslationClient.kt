@@ -1,14 +1,5 @@
 package net.primal.android.notes.translation.remote
 
-import io.ktor.client.HttpClient
-import io.ktor.client.request.header
-import io.ktor.client.request.parameter
-import io.ktor.client.request.post
-import io.ktor.client.request.setBody
-import io.ktor.client.statement.bodyAsText
-import io.ktor.http.ContentType
-import io.ktor.http.content.TextContent
-import io.ktor.http.isSuccess
 import java.io.IOException
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.buildJsonObject
@@ -16,9 +7,15 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import net.primal.android.notes.translation.NetworkTranslationRoute
 import net.primal.android.notes.translation.NoteTranslationConfig
+import net.primal.core.utils.getOrElse
 import net.primal.core.utils.runCatching
 import net.primal.core.utils.serialization.CommonJson
 import net.primal.core.utils.serialization.CommonJsonImplicitNulls
+import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 
 fun interface RemoteNoteTranslator {
     suspend fun translate(
@@ -29,7 +26,7 @@ fun interface RemoteNoteTranslator {
 }
 
 class UserOwnedTranslationClient(
-    private val httpClient: HttpClient,
+    private val httpClient: OkHttpClient,
 ) : RemoteNoteTranslator {
     override suspend fun translate(
         route: NetworkTranslationRoute,
@@ -61,7 +58,7 @@ class UserOwnedTranslationClient(
         return translated
     }
 
-    private suspend fun translateLibre(
+    private fun translateLibre(
         route: NetworkTranslationRoute.LibreTranslate,
         text: String,
         targetLanguage: String,
@@ -83,7 +80,7 @@ class UserOwnedTranslationClient(
             ?: parsed.text.orEmpty()
     }
 
-    private suspend fun translateDeepL(
+    private fun translateDeepL(
         route: NetworkTranslationRoute.DeepL,
         text: String,
         targetLanguage: String,
@@ -100,7 +97,7 @@ class UserOwnedTranslationClient(
         return decode<DeepLResponse>(payload).translations?.firstOrNull()?.text.orEmpty()
     }
 
-    private suspend fun translateGoogle(
+    private fun translateGoogle(
         route: NetworkTranslationRoute.Google,
         text: String,
         targetLanguage: String,
@@ -115,33 +112,42 @@ class UserOwnedTranslationClient(
         val payload = postJson(
             url = NoteTranslationConfig.GOOGLE_TRANSLATE_ENDPOINT,
             json = body,
-            parameters = mapOf("key" to route.apiKey),
+            query = mapOf("key" to route.apiKey),
         )
         return decode<GoogleTranslateResponse>(payload).data?.translations?.firstOrNull()?.translatedText.orEmpty()
     }
 
-    private suspend fun postJson(
+    private fun postJson(
         url: String,
         json: String,
         headers: Map<String, String> = emptyMap(),
-        parameters: Map<String, String> = emptyMap(),
+        query: Map<String, String> = emptyMap(),
     ): String {
-        val response = httpClient.post(url) {
-            headers.forEach { (name, value) -> header(name, value) }
-            parameters.forEach { (name, value) -> parameter(name, value) }
-            setBody(TextContent(json, ContentType.Application.Json))
+        val httpUrl = url.toHttpUrl().newBuilder().apply {
+            query.forEach { (name, value) -> addQueryParameter(name, value) }
+        }.build()
+        val request = Request.Builder()
+            .url(httpUrl)
+            .apply { headers.forEach { (name, value) -> header(name, value) } }
+            .post(json.toRequestBody(JSON_MEDIA))
+            .build()
+        httpClient.newCall(request).execute().use { response ->
+            val payload = response.body?.string().orEmpty()
+            if (!response.isSuccessful) {
+                throw IOException("Translation HTTP ${response.code}")
+            }
+            return payload
         }
-        val payload = response.bodyAsText()
-        if (!response.status.isSuccess()) {
-            throw IOException("Translation HTTP ${response.status.value}")
-        }
-        return payload
     }
 
     private inline fun <reified T> decode(payload: String): T {
         return runCatching { CommonJson.decodeFromString<T>(payload) }.getOrElse {
             throw IOException("Unable to parse translation response.")
         }
+    }
+
+    companion object {
+        private val JSON_MEDIA = "application/json; charset=utf-8".toMediaType()
     }
 }
 

@@ -11,8 +11,8 @@ import net.primal.android.notes.translation.NoteTranslationEngine
 import net.primal.android.notes.translation.device.AndroidOnDeviceNoteTranslator
 import net.primal.android.notes.translation.device.OnDeviceNoteTranslator
 import net.primal.android.notes.translation.remote.UserOwnedTranslationClient
-import net.primal.core.networking.factory.HttpClientFactory
 import net.primal.core.utils.coroutines.DispatcherProvider
+import okhttp3.OkHttpClient
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -20,10 +20,8 @@ object NoteTranslationModule {
 
     @Provides
     @Singleton
-    fun provideUserOwnedTranslationClient(): UserOwnedTranslationClient =
-        UserOwnedTranslationClient(
-            httpClient = HttpClientFactory.createHttpClientWithDefaultConfig(),
-        )
+    fun provideUserOwnedTranslationClient(okHttpClient: OkHttpClient): UserOwnedTranslationClient =
+        UserOwnedTranslationClient(httpClient = okHttpClient)
 
     @Provides
     @Singleton
